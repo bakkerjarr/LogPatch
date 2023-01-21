@@ -38,32 +38,34 @@ def execute(cmd, log_file=''):
     if log_file != '':
         # TODO How safe is the 'with open()...' statement below?
         with open(log_file, 'w') as f_out:
-            for path in subproc_Popen(cmd):
-                print(path, end='')
-                f_out.write(path)
+            for line in subproc_Popen(cmd):
+                print(line, end='')
+                f_out.write(line)
     else:
-        for path in subproc_Popen(cmd):
-            print(path, end='')
+        for line in subproc_Popen(cmd):
+            print(line, end='')
 
 def exec_recipe(recipe):
     logger.info(f"Executing recipe: {recipe['name']}")
-    # TODO Handle custom directory using log_directory option in config file
     if recipe['log_package_version_cmd']:
         datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
-        execute(recipe['package_version_cmd'],
-                log_file=f"{datetime_now}_package_versions_pre-patch.log")
+        log_file_name = path.join(recipe['log_directory'],
+                                  f"{datetime_now}_package_versions_pre-patch.log")
+        execute(recipe['package_version_cmd'], log_file_name)
     if recipe['log_patch_cmd']:
         datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
-        execute(recipe['patch_cmd'],
-                log_file=f"{datetime_now}_{recipe['name']}.log")
+        log_file_name = path.join(recipe['log_directory'], f"{datetime_now}_{recipe['name']}.log")
+        execute(recipe['patch_cmd'], log_file_name)
     else:
         execute(recipe['patch_cmd'])
     if recipe['log_package_version_cmd']:
         datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
-        execute(recipe['package_version_cmd'],
-                log_file=f"{datetime_now}_package_versions_post-patch.log")
+        log_file_name = path.join(recipe['log_directory'],
+                                  f"{datetime_now}_package_versions_post-patch.log")
+        execute(recipe['package_version_cmd'], log_file_name)
 
 if __name__ == "__main__":
+    # TODO Create requirements.txt
     LOG_LEVEL = logging.INFO
     logger = logging.getLogger(__name__)
     logger.setLevel(LOG_LEVEL)
