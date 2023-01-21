@@ -78,7 +78,7 @@ if __name__ == "__main__":
                                         "manager. Output can optionally be recorded if " \
                                         "required. This is all controlled via a YAML file.")
     arg_parser.add_argument('config_path',
-                            help="Path to a pkgptch YAML configuration file")
+                            help="Path to a logpatch YAML configuration file")
     arg_parser.add_argument('recipe',
                             help="The selected recipe to use from the configuration file")
     args = arg_parser.parse_args()
