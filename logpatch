@@ -21,7 +21,53 @@ import subprocess
 import yaml
 
 from datetime import datetime
+from jsonschema import Draft7Validator
 from os import path
+
+def validate_schema_conf(conf) -> int:
+    schema = {
+        'type': 'object',
+        'additionalProperties': {
+            'type': 'object',
+            'properties': {
+                'log_directory': {
+                    # 'description': "The parent directory to write log files",
+                    'type': 'string'
+                },
+                'log_package_version_cmd': {
+                    # 'description': "Set to true to log package versions before and after patching, false to not",
+                    'type': 'boolean'
+                },
+                'log_patch_cmd':{
+                    # 'description': "Set to true to log patch command output, false to not",
+                    'type': 'boolean'
+                },
+                'name': {
+                    # 'description': "The name of this recipe",
+                    'type': 'string'
+                },
+                'patch_cmd': {
+                    # 'description': "The package manager command to install patches",
+                    'type': 'string'
+                },
+                'package_version_cmd': {
+                    # 'description': "The package manager command to record package versions",
+                    'type': 'string'
+                }
+            },
+            'required': ['log_directory', 'log_package_version_cmd', 'log_patch_cmd', 'name',
+                     'patch_cmd', 'package_version_cmd']
+        }
+    }
+
+    validator = Draft7Validator(schema)
+    errors = list(validator.iter_errors(conf))
+    if len(errors) == 0:
+        return 0
+    for error in errors:
+        logger.error("Syntax error in supplied configuration file (see below for details)\n" \
+                        f"{error}")
+    return 1
 
 def subproc_Popen(cmd):
     """From https://stackoverflow.com/a/4417735"""
@@ -36,8 +82,9 @@ def subproc_Popen(cmd):
 
 def execute(cmd, log_file=''):
     if log_file != '':
-        # TODO How safe is the 'with open()...' statement below?
-        with open(log_file, 'w') as f_out:
+        # I'm fairly happy that the safety of 'with open...' for this program's context. Let's open
+        # files in 'append' instead of 'write' mode just in case.
+        with open(log_file, 'a') as f_out:
             for line in subproc_Popen(cmd):
                 print(line, end='')
                 f_out.write(line)
@@ -65,7 +112,6 @@ def exec_recipe(recipe):
         execute(recipe['package_version_cmd'], log_file_name)
 
 if __name__ == "__main__":
-    # TODO Create requirements.txt
     LOG_LEVEL = logging.INFO
     logger = logging.getLogger(__name__)
     logger.setLevel(LOG_LEVEL)
@@ -87,14 +133,15 @@ if __name__ == "__main__":
     config_path = args.config_path
     selected_recipe = args.recipe
 
+    # Ensure that the configuration file exists
     if not path.exists(config_path):
         logger.critical(f"Supplied path does not exist: {config_path}")
         exit(1)
     if not path.isfile(config_path):
         logger.critical(f"Supplied path is not a file: {config_path}")
         exit(1)
-    # TODO Syntax checking of config file
-
+    
+    # Parse the configuration file
     conf = {}
     with open(config_path, 'r') as f_in:
         try:
@@ -104,9 +151,16 @@ if __name__ == "__main__":
             logger.critical(f"Caught yaml.YAMLError:\n{excpt}")
             exit(1)
 
+    # Validate the schema of the configuration file
+    if validate_schema_conf(conf) != 0:
+        logger.critical(f"The supplied configuration file ({config_path}) does not match the expected schema so this program must exit.")
+        exit(1)
+
     try:
         exec_recipe(conf[selected_recipe])
     except subprocess.CalledProcessError as excpt:
         logger.error(f"Caught subprocess.CalledProcessError:\n{excpt}")
     
     exit(0)
+
+# TODO Write tests to check that expected output can be gotten from commands. E.g. run `echo "Hello, World"` and check that output says "Hello, World"
