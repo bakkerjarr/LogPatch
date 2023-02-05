@@ -11,6 +11,7 @@ __status__      = "Development"
 # history       : XX/12/2022 - 0.1.0 - jnb
 #                 Initial version.
 # future work   :
+#                   - Allow different shells to be selected when executing commands.
 #                   - Support package managers on different OS versions.
 #                   - Handle package updates that require input from the user, such as needing to
 #                     overwrite an existing configuration file.
@@ -25,6 +26,15 @@ from jsonschema import Draft7Validator
 from os import path
 
 def validate_schema_conf(conf) -> int:
+    """Validate the schema of a deserialised YAML configuration document.
+    
+    Args:
+        conf (dict) : The configuration that will be validated
+ 
+    Returns:
+        int         : 1 if the schema has validation errors, otherwise 0
+    """
+    # The description has been left in for each schema property as a form of documentation
     schema = {
         'type': 'object',
         'additionalProperties': {
@@ -59,7 +69,6 @@ def validate_schema_conf(conf) -> int:
                      'patch_cmd', 'package_version_cmd']
         }
     }
-
     validator = Draft7Validator(schema)
     errors = list(validator.iter_errors(conf))
     if len(errors) == 0:
@@ -70,21 +79,34 @@ def validate_schema_conf(conf) -> int:
     return 1
 
 def subproc_Popen(cmd):
-    """From https://stackoverflow.com/a/4417735"""
+    """A helper function for executing a command and return the STDOUT and STDERR via yield.
+    
+    This function is based on: From https://stackoverflow.com/a/4417735
+
+    Args:
+        cmd (str) : A command to execute in a shell
+    """
     popen = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line 
+        yield stdout_line
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
 def execute(cmd, log_file=''):
+    """Execute a command and print the output to the terminal and optionally append to a file.
+    
+    Args:
+        cmd (str)       : A command to execute in a shell
+        log_file (str)  : The path of the file to append a command's output to
+    """
     if log_file != '':
         # I'm fairly happy that the safety of 'with open...' for this program's context. Let's open
         # files in 'append' instead of 'write' mode just in case.
         with open(log_file, 'a') as f_out:
+            # TODO Catch subprocess.CalledProcessError and gracefully exit the program if its caught
             for line in subproc_Popen(cmd):
                 print(line, end='')
                 f_out.write(line)
@@ -93,6 +115,13 @@ def execute(cmd, log_file=''):
             print(line, end='')
 
 def exec_recipe(recipe):
+    """Execute a LogPatch recipe.
+
+    See the validate_schema_conf() function for information on the schema of the dict.
+    
+    Args:
+        recipe (dict)   : The recipe to execute
+    """
     logger.info(f"Executing recipe: {recipe['name']}")
     if recipe['log_package_version_cmd']:
         datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
@@ -155,6 +184,8 @@ if __name__ == "__main__":
     if validate_schema_conf(conf) != 0:
         logger.critical(f"The supplied configuration file ({config_path}) does not match the expected schema so this program must exit.")
         exit(1)
+    
+    # TODO Check that conf[selected_recipe]['log_directory'] exists, even if we aren't going to log anything
 
     try:
         exec_recipe(conf[selected_recipe])

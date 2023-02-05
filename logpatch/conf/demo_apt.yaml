@@ -1,19 +1,19 @@
-APT_test:
-  log_directory: "."
-  log_package_version_cmd: true
-  log_patch_cmd: true
+APT_patch_quiet:
+  log_directory: "./patching"
+  log_package_version_cmd: false
+  log_patch_cmd: false
   name: "apt_patch"
-  patch_cmd: "apt update && echo 'All done!'"
+  patch_cmd: "apt update && apt full-upgrade -y"
   package_version_cmd: "apt list --installed"
 APT_patch:
-  log_directory: "./test"
+  log_directory: "./patching"
   log_package_version_cmd: true
   log_patch_cmd: true
   name: "apt_patch"
   patch_cmd: "apt update && apt full-upgrade -y"
   package_version_cmd: "apt list --installed"
 APT_autoremove:
-  log_directory: "./"
+  log_directory: "./clean-up"
   log_package_version_cmd: true
   log_patch_cmd: true
   name: "apt_autoremove"
