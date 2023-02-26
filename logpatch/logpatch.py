@@ -25,6 +25,14 @@ from datetime import datetime
 from jsonschema import Draft7Validator
 from os import path
 
+def datetime_now_utc():
+    """Return the current datetime (UTC) following ISO 8601.
+
+    Returns:
+        str : A ISO 8601 string representation of the current datetime (UTC)
+    """
+    return datetime.utcnow().strftime('%Y%m%dT%H%M%S.%fZ')
+
 def validate_schema_conf(conf) -> int:
     """Validate the schema of a deserialised YAML configuration document.
     
@@ -124,20 +132,18 @@ def exec_recipe(recipe):
     """
     logger.info(f"Executing recipe: {recipe['name']}")
     if recipe['log_package_version_cmd']:
-        datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
         log_file_name = path.join(recipe['log_directory'],
-                                  f"{datetime_now}_package_versions_pre-patch.log")
+                                  f"{datetime_now_utc()}_package_versions_pre-patch.log")
         execute(recipe['package_version_cmd'], log_file_name)
     if recipe['log_patch_cmd']:
-        datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
-        log_file_name = path.join(recipe['log_directory'], f"{datetime_now}_{recipe['name']}.log")
+        log_file_name = path.join(recipe['log_directory'],
+                                  f"{datetime_now_utc()}_{recipe['name']}.log")
         execute(recipe['patch_cmd'], log_file_name)
     else:
         execute(recipe['patch_cmd'])
     if recipe['log_package_version_cmd']:
-        datetime_now = datetime.now().strftime('%Y%m%dT%H%M%SZ')
         log_file_name = path.join(recipe['log_directory'],
-                                  f"{datetime_now}_package_versions_post-patch.log")
+                                  f"{datetime_now_utc()}_package_versions_post-patch.log")
         execute(recipe['package_version_cmd'], log_file_name)
 
 if __name__ == "__main__":
